@@ -3,12 +3,43 @@
 # 哔哩终端
 
 轻量的第三方B站Android客户端
-[安装包下载点这里](https://gitee.com/RobinNotBad/BiliClient/releases)
+[安装包下载点这里](https://github.com/MarSnow09/BiliClient/releases)
 
-[官方 Gitee 仓库](https://gitee.com/RobinNotBad/BiliClient) | [Github 仓库 (由huanli233 fork)](https://github.com/huanli233/BiliClient) | [Action Build (Github)](https://github.com/huanli233/action_build_biliclient/actions)
+[原官方 Gitee 仓库](https://gitee.com/RobinNotBad/BiliClient) | [上游 Github 仓库 (由huanli233 fork)](https://github.com/huanli233/BiliClient) | [本维护分支](https://github.com/MarSnow09/BiliClient)
 
 
 </div>
+
+# 非官方维护说明
+
+本仓库是 `MarSnow09/BiliClient` 的个人维护分支，基于上游 `huanli233/BiliClient`。由于上游作者已停止维护，本分支主要用于继续修复常用功能、适配 B 站接口变化、同步可还原的新版本功能，并提供自用/测试 APK。
+
+本分支不是原作者官方发布渠道。若需要反馈本分支的问题，请优先在本仓库提交 issue；原项目链接仅用于标注来源与致谢。
+
+## 当前维护版
+
+- 版本：`2.9.8-fix`
+- 分支：`develop`
+- 主要改动：
+  - 修复动态接口失效和新版动态结构解析问题
+  - 增加播放历史删除
+  - 增加硬币/经验变化记录、修改签名、排行榜、时间线等入口
+  - 增强收藏夹创建/编辑/删除
+  - 增加最近更新 UP 主显示开关
+
+## 构建
+
+本项目当前使用 JDK 17 构建。Android SDK 路径请写入本地 `local.properties`，该文件不会提交到仓库。
+
+```bash
+JAVA_HOME=/home/qianmo/.local/share/jdks/jdk-17.0.19+10 ./gradlew assembleDebug
+```
+
+生成的调试 APK 位于：
+
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
 
 # 介绍
 这是一个**极其轻量级**的**B站客户端**，名字来源于原神中的“虚空终端”。使用远古技术 `java` + `xml`开发，最低支持**安卓4.0.4**。（部分4.0.4设备无法运行，但也无法解决）~~这么古老的设备解码视频都费劲，要不还是留作收藏吧（~~
