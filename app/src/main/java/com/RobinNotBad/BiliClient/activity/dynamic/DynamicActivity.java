@@ -36,6 +36,7 @@ public class DynamicActivity extends RefreshMainActivity {
 
     private ArrayList<Dynamic> dynamicList;
     private DynamicAdapter dynamicAdapter;
+    private List<DynamicApi.UpInfo> recentUpList;
     private long offset = 0;
     private boolean firstRefresh = true;
     private String type = "all";
@@ -183,7 +184,37 @@ public class DynamicActivity extends RefreshMainActivity {
             dynamicAdapter.notifyDataSetChanged();
         }
 
+        loadRecentUpList();
         addDynamic(type, true);
+    }
+
+    private void loadRecentUpList() {
+        CenterThreadPool.run(() -> {
+            try {
+                recentUpList = DynamicApi.getRecentUpList();
+                runOnUiThread(() -> {
+                    if (dynamicAdapter == null) return;
+                    dynamicAdapter.recentUpList = recentUpList;
+                    boolean showRecentUp = showRecentUp();
+                    int expectedItemCount = (dynamicList != null ? dynamicList.size() + 1 : 1) + (showRecentUp ? 1 : 0);
+                    if (dynamicAdapter.getItemCount() == expectedItemCount) {
+                        if (showRecentUp) dynamicAdapter.notifyItemChanged(1);
+                    } else if (showRecentUp) {
+                        dynamicAdapter.notifyItemInserted(1);
+                    } else {
+                        dynamicAdapter.notifyItemRemoved(1);
+                    }
+                });
+            } catch (Exception ignored) {
+                recentUpList = null;
+            }
+        });
+    }
+
+    private boolean showRecentUp() {
+        return SharedPreferencesUtil.getBoolean(SharedPreferencesUtil.RECENT_UP_DISPLAY_ENABLE, true)
+                && recentUpList != null
+                && !recentUpList.isEmpty();
     }
 
     private void addDynamic(String type) {
@@ -204,13 +235,13 @@ public class DynamicActivity extends RefreshMainActivity {
                     dynamicList.addAll(list);
                     if (firstRefresh) {
                         firstRefresh = false;
-                        dynamicAdapter = new DynamicAdapter(this, dynamicList, recyclerView);
+                        dynamicAdapter = new DynamicAdapter(this, dynamicList, recyclerView, recentUpList);
                         setAdapter(dynamicAdapter);
                     } else {
                         if (refresh) {
                             dynamicAdapter.notifyDataSetChanged();
                         } else {
-                            dynamicAdapter.notifyItemRangeInserted(dynamicList.size() - list.size() + 1, list.size());
+                            dynamicAdapter.notifyItemRangeInserted(dynamicList.size() - list.size() + (showRecentUp() ? 2 : 1), list.size());
                         }
                     }
                     if (refresh) {
@@ -230,7 +261,10 @@ public class DynamicActivity extends RefreshMainActivity {
         if (requestCode == DynamicHolder.GO_TO_INFO_REQUEST && resultCode == RESULT_OK) {
             try {
                 if (data != null && !isRefreshing) {
-                    DynamicHolder.removeDynamicFromList(dynamicList, data.getIntExtra("position", 0) - 1, dynamicAdapter);
+                    int position = data.getIntExtra("position", 0) - (showRecentUp() ? 2 : 1);
+                    if (position >= 0 && position < dynamicList.size()) {
+                        DynamicHolder.removeDynamicFromList(dynamicList, position, dynamicAdapter, showRecentUp());
+                    }
                 }
             } catch (Throwable ignored) {
             }

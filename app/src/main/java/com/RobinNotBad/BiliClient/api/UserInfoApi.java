@@ -14,6 +14,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Objects;
 
@@ -165,6 +166,14 @@ public class UserInfoApi {
                 return 0;
             } else return -1;
         } else return -1;
+    }
+
+    public static JSONObject updateUserSign(String sign) throws IOException, JSONException {
+        String data = "csrf=" + NetWorkUtil.getInfoFromCookie("bili_jct", SharedPreferencesUtil.getString(SharedPreferencesUtil.cookies, ""));
+        if (sign != null) {
+            data += "&user_sign=" + URLEncoder.encode(sign, "UTF-8");
+        }
+        return new JSONObject(Objects.requireNonNull(NetWorkUtil.post("https://api.bilibili.com/x/member/web/sign/update", data, NetWorkUtil.webHeaders).body()).string());
     }
 
 

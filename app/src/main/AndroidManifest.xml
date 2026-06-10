@@ -314,6 +314,16 @@
             android:label="登录记录"
             android:screenOrientation="locked" />
         <activity
+            android:name=".activity.user.CoinLogActivity"
+            android:exported="false"
+            android:label="硬币变化记录"
+            android:screenOrientation="locked" />
+        <activity
+            android:name=".activity.user.ExpLogActivity"
+            android:exported="false"
+            android:label="经验变化记录"
+            android:screenOrientation="locked" />
+        <activity
             android:name=".activity.user.WatchLaterActivity"
             android:exported="false"
             android:label="稍后再看"
@@ -327,6 +337,16 @@
             android:name=".activity.user.favorite.FavoriteFolderListActivity"
             android:exported="false"
             android:label="收藏夹列表"
+            android:screenOrientation="locked" />
+        <activity
+            android:name=".activity.user.favorite.FavoriteFolderEditActivity"
+            android:exported="false"
+            android:label="编辑收藏夹"
+            android:screenOrientation="locked" />
+        <activity
+            android:name=".activity.user.favorite.FavoriteFolderCreateActivity"
+            android:exported="false"
+            android:label="创建收藏夹"
             android:screenOrientation="locked" />
         <activity
             android:name=".activity.user.info.UserInfoActivity"
@@ -391,6 +411,11 @@
             android:label="设置"
             android:screenOrientation="locked" />
         <activity
+            android:name=".activity.user.EditSignActivity"
+            android:exported="true"
+            android:label="修改描述"
+            android:screenOrientation="locked" />
+        <activity
             android:name=".activity.settings.DataMigrationActivity"
             android:exported="false"
             android:label="数据迁移"
@@ -427,9 +452,19 @@
             android:label="热门"
             android:screenOrientation="locked" />
         <activity
+            android:name=".activity.video.RankingActivity"
+            android:exported="true"
+            android:label="全站排行榜"
+            android:screenOrientation="locked" />
+        <activity
             android:name=".activity.video.RecommendActivity"
             android:exported="true"
             android:label="推荐"
+            android:screenOrientation="locked" />
+        <activity
+            android:name=".activity.video.TimelineActivity"
+            android:exported="false"
+            android:label="时间线"
             android:screenOrientation="locked" />
         <activity
             android:name=".activity.settings.login.LoginActivity"

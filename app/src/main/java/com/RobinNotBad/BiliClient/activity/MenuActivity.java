@@ -26,7 +26,9 @@ import com.RobinNotBad.BiliClient.activity.settings.login.LoginActivity;
 import com.RobinNotBad.BiliClient.activity.user.MySpaceActivity;
 import com.RobinNotBad.BiliClient.activity.video.PopularActivity;
 import com.RobinNotBad.BiliClient.activity.video.PreciousActivity;
+import com.RobinNotBad.BiliClient.activity.video.RankingActivity;
 import com.RobinNotBad.BiliClient.activity.video.RecommendActivity;
+import com.RobinNotBad.BiliClient.activity.video.TimelineActivity;
 import com.RobinNotBad.BiliClient.activity.video.local.LocalListActivity;
 import com.RobinNotBad.BiliClient.util.SharedPreferencesUtil;
 import com.bumptech.glide.Glide;
@@ -56,7 +58,9 @@ public class MenuActivity extends BaseActivity {
         put("recommend", new Pair<>("推荐", RecommendActivity.class));
         put("popular", new Pair<>("热门", PopularActivity.class));
         put("precious", new Pair<>("入站必刷", PreciousActivity.class));
+        put("ranking", new Pair<>("全站排行榜", RankingActivity.class));
         put("live", new Pair<>("直播", RecommendLiveActivity.class));
+        put("timeline", new Pair<>("时间线", TimelineActivity.class));
         put("search", new Pair<>("搜索", SearchActivity.class));
         put("dynamic", new Pair<>("动态", DynamicActivity.class));
         put("myspace", new Pair<>("我的", MySpaceActivity.class));
@@ -228,7 +232,9 @@ public class MenuActivity extends BaseActivity {
             add("recommend");
             add("popular");
             add("precious");
+            add("ranking");
             add("live");
+            add("timeline");
             add("search");
             add("dynamic");
             add("myspace");
@@ -244,4 +250,3 @@ public class MenuActivity extends BaseActivity {
         return super.onKeyDown(keyCode, event);
     }
 }
-

@@ -12,6 +12,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 public class HistoryApi {
 
@@ -30,6 +31,25 @@ public class HistoryApi {
                 + "&platform=pc"
                 + "&csrf=" + SharedPreferencesUtil.getString(SharedPreferencesUtil.csrf, "");
         NetWorkUtil.post(url, per, NetWorkUtil.webHeaders);
+    }
+
+    /**
+     * 删除视频历史记录
+     *
+     * @param aid 视频aid
+     * @return 返回码，0为成功
+     * @throws IOException
+     * @throws JSONException
+     */
+    public static int deleteHistory(long aid) throws IOException, JSONException {
+        String url = "https://api.bilibili.com/x/v2/history/delete";
+        String data = new NetWorkUtil.FormData()
+                .put("kid", "archive_" + aid)
+                .put("csrf", SharedPreferencesUtil.getString(SharedPreferencesUtil.csrf, ""))
+                .toString();
+
+        JSONObject result = new JSONObject(Objects.requireNonNull(NetWorkUtil.post(url, data, NetWorkUtil.webHeaders).body()).string());
+        return result.getInt("code");
     }
 
     /**

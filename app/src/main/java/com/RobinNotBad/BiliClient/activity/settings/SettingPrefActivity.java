@@ -35,6 +35,8 @@ public class SettingPrefActivity extends RefreshListActivity {
                 add(new SettingSection("switch", "识别链接", "link_enable", getString(R.string.desc_link_enable), "true"));
                 add(new SettingSection("switch", "新动态数量检查", SharedPreferencesUtil.DYNAMIC_UPDATE_CHECK_ENABLE,
                         getString(R.string.desc_dynamic_update_check_enable), "true"));
+                add(new SettingSection("switch", "最近更新的UP主", SharedPreferencesUtil.RECENT_UP_DISPLAY_ENABLE,
+                        getString(R.string.desc_recent_up_display_enable), "true"));
                 add(new SettingSection("switch", "消息数量检查", SharedPreferencesUtil.MESSAGE_UPDATE_CHECK_ENABLE,
                         getString(R.string.desc_message_update_check_enable), "true"));
                 add(new SettingSection("switch", "私信自动已读", SharedPreferencesUtil.PRIVATE_MSG_AUTO_READ_ENABLE,

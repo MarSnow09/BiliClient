@@ -44,6 +44,18 @@ import okhttp3.ResponseBody;
 //新的动态api，旧的那个实在太蛋疼而且说不定随时会被弃用（
 
 public class DynamicApi {
+    private static final String DYNAMIC_FEATURES = "itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,forwardListHidden,decorationCard,commentsNewVersion,onlyfansAssetsV2,ugcDelete,onlyfansQaCard";
+    private static final String FEED_ALL_URL = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all";
+    private static final String FEED_ALL_DESKTOP_URL = "https://api.bilibili.com/x/polymer/web-dynamic/desktop/v1/feed/all";
+    private static final String FEED_SPACE_URL = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space";
+    private static final String FEED_SPACE_DESKTOP_URL = "https://api.bilibili.com/x/polymer/web-dynamic/desktop/v1/feed/space";
+
+    public static class UpInfo {
+        public long mid;
+        public String uname;
+        public String face;
+        public boolean has_update;
+    }
 
     /**
      * 发送纯文本动态
@@ -302,20 +314,26 @@ public class DynamicApi {
     }
 
     public static long getDynamicList(List<Dynamic> dynamicList, long offset, long mid, String type) throws IOException, JSONException {
-        String url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/"
-                + (mid == 0 ? "all?type=" + type : "space?platform=web&web_location=333.1387&timezone_offset=-480&host_mid=" + mid)
-                + (offset == 0 ? "" : "&offset=" + offset)
-                + "&features=itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,forwardListHidden,decorationCard,commentsNewVersion,onlyfansAssetsV2,ugcDelete,onlyfansQaCard,avatarAutoTheme,sunflowerStyle,eva3CardOpus,eva3CardVideo,eva3CardComment";
-
-
-        JSONObject all = NetWorkUtil.getJson(ConfInfoApi.signWBI(DmImgParamUtil.getDmImgParamsUrl(url)));
+        String url = buildDynamicListUrl(mid == 0 ? FEED_ALL_URL : FEED_SPACE_DESKTOP_URL, offset, mid, type);
+        JSONObject all = getDynamicJson(url);
+        if (all.optInt("code", -1) != 0 && mid == 0 && all.optInt("code", -1) != -101) {
+            all = getDynamicJson(buildDynamicListUrl(FEED_ALL_DESKTOP_URL, offset, mid, type));
+        } else if (all.optInt("code", -1) != 0 && mid != 0 && all.optInt("code", -1) != -101) {
+            all = getDynamicJson(buildDynamicListUrl(FEED_SPACE_URL, offset, mid, type));
+        }
         if (all.getInt("code") != 0) throw new JSONException(all.getString("message"));
 
 
         JSONObject data = all.getJSONObject("data");
 
-        boolean has_more = data.getBoolean("has_more");
-        long offset_new = (has_more ? Long.parseLong(data.getString("offset")) : -1);
+        boolean has_more = data.optBoolean("has_more", false);
+        long offset_new = -1;
+        if (has_more) {
+            try {
+                offset_new = Long.parseLong(data.optString("offset", "-1"));
+            } catch (NumberFormatException ignored) {
+            }
+        }
 
         if (mid == 0) {
             long update_baseline = data.optLong("update_baseline", -1);
@@ -325,9 +343,14 @@ public class DynamicApi {
             }
         }
 
-        JSONArray items = data.getJSONArray("items");
+        JSONArray items = data.optJSONArray("items");
+        if (items == null) return offset_new;
         for (int i = 0; i < items.length(); i++) {
-            dynamicList.add(analyzeDynamic(items.getJSONObject(i)));
+            try {
+                dynamicList.add(analyzeDynamic(items.getJSONObject(i)));
+            } catch (JSONException e) {
+                Logu.e("动态解析失败: " + e.getMessage());
+            }
         }
 
         return offset_new;
@@ -336,7 +359,7 @@ public class DynamicApi {
     public static Dynamic getDynamic(long id) throws JSONException, IOException {
         String url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/detail?id=" + id;
 
-        JSONObject all = NetWorkUtil.getJson(url);
+        JSONObject all = getDynamicJson(url);
         if (all.getInt("code") != 0) throw new JSONException(all.getString("message"));
 
         JSONObject data = all.getJSONObject("data");
@@ -345,8 +368,13 @@ public class DynamicApi {
     }
 
     public static int checkDynamicUpdate(String type, long updateBaseline) throws IOException, JSONException {
-        String url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all/update?type=" + type + "&update_baseline=" + updateBaseline + "&web_location=333.1365";
-        JSONObject result = NetWorkUtil.getJson(url, NetWorkUtil.webHeaders);
+        String url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all/update" + new NetWorkUtil.FormData()
+                .setUrlParam(true)
+                .put("type", TextUtils.isEmpty(type) ? "all" : type)
+                .put("update_baseline", updateBaseline)
+                .put("web_location", "333.1365")
+                .put("platform", "web");
+        JSONObject result = getDynamicJson(url);
         if (result.getInt("code") != 0) throw new JSONException(result.getString("message"));
         if (result.has("data") && !result.isNull("data")) {
             JSONObject data = result.getJSONObject("data");
@@ -355,8 +383,64 @@ public class DynamicApi {
         return 0;
     }
 
+    public static List<UpInfo> getRecentUpList() throws IOException, JSONException {
+        String url = "https://api.bilibili.com/x/polymer/web-dynamic/v1/portal" + new NetWorkUtil.FormData()
+                .setUrlParam(true)
+                .put("web_location", "333.1365")
+                .put("platform", "web");
+        JSONObject result = getDynamicJson(url);
+        if (result.getInt("code") != 0) throw new JSONException(result.getString("message"));
+
+        ArrayList<UpInfo> upList = new ArrayList<>();
+        if (result.has("data") && !result.isNull("data")) {
+            JSONObject data = result.getJSONObject("data");
+            if (data.has("up_list") && !data.isNull("up_list")) {
+                JSONArray list = data.getJSONArray("up_list");
+                for (int i = 0; i < list.length(); i++) {
+                    JSONObject item = list.getJSONObject(i);
+                    UpInfo upInfo = new UpInfo();
+                    upInfo.mid = item.getLong("mid");
+                    upInfo.uname = item.getString("uname");
+                    upInfo.face = item.getString("face");
+                    upInfo.has_update = item.optBoolean("has_update", false) || item.optInt("has_update", 0) == 1;
+                    upList.add(upInfo);
+                }
+            }
+        }
+        return upList;
+    }
+
+    private static String buildDynamicListUrl(String baseUrl, long offset, long mid, String type) {
+        NetWorkUtil.FormData data = new NetWorkUtil.FormData()
+                .setUrlParam(true)
+                .put("features", DYNAMIC_FEATURES)
+                .put("platform", "web")
+                .put("timezone_offset", -480);
+        if (mid == 0) {
+            data.put("type", TextUtils.isEmpty(type) ? "all" : type)
+                    .put("web_location", "333.1365");
+        } else {
+            data.put("host_mid", mid)
+                    .put("web_location", "333.1387");
+        }
+        if (offset != 0) data.put("offset", offset);
+        return baseUrl + data;
+    }
+
+    private static JSONObject getDynamicJson(String url) throws IOException, JSONException {
+        JSONObject result = NetWorkUtil.getJson(url, NetWorkUtil.webHeaders);
+        int code = result.optInt("code", -1);
+        if (code == 0 || code == -101) return result;
+        return getSignedDynamicJson(url);
+    }
+
+    private static JSONObject getSignedDynamicJson(String url) throws IOException, JSONException {
+        return NetWorkUtil.getJson(ConfInfoApi.signWBI(DmImgParamUtil.getDmImgParamsUrl(url)), NetWorkUtil.webHeaders);
+    }
+
     public static Dynamic analyzeDynamic(JSONObject dynamic_json) throws JSONException {
         Logu.v("--------------");
+        dynamic_json = normalizeDynamic(dynamic_json);
         Dynamic dynamic = new Dynamic();
 
         if (!dynamic_json.isNull("id_str"))
@@ -369,8 +453,9 @@ public class DynamicApi {
         }
         dynamic.type = dynamic_json.optString("type");
 
-        JSONObject basic = dynamic_json.getJSONObject("basic");
-        String comment_id = basic.optString("comment_id_str", "0");
+        JSONObject basic = dynamic_json.optJSONObject("basic");
+        if (basic == null) basic = new JSONObject();
+        String comment_id = basic.optString("comment_id_str", basic.optString("rid_str", "0"));
         if (!TextUtils.isEmpty(comment_id))
             try {
                 dynamic.comment_id = Long.parseLong(comment_id);
@@ -379,30 +464,34 @@ public class DynamicApi {
         else
             dynamic.comment_id = 0;
 
-        dynamic.comment_type = basic.optInt("comment_type");
+        dynamic.comment_type = basic.has("comment_type") ? basic.optInt("comment_type") : basic.optInt("rtype");
 
         Logu.v("id", String.valueOf(dynamic.dynamicId));
         Logu.v("oid", String.valueOf(dynamic.comment_id));
         Logu.v("type", dynamic.type);
         Logu.v("otype", String.valueOf(dynamic.comment_type));
 
-        JSONObject modules = dynamic_json.getJSONObject("modules");
+        JSONObject modules = dynamic_json.optJSONObject("modules");
+        if (modules == null) {
+            dynamic.content = "[动态内容解析异常]";
+            return dynamic;
+        }
 
         //发布者
         UserInfo userInfo = new UserInfo();
         if (!modules.isNull("module_author")) {
             JSONObject module_author = modules.getJSONObject("module_author");
-            userInfo.mid = module_author.getLong("mid");
-            userInfo.name = module_author.getString("name");
+            userInfo.mid = module_author.optLong("mid");
+            userInfo.name = module_author.optString("name");
             if (!module_author.isNull("following"))
-                userInfo.followed = module_author.getBoolean("following");
-            userInfo.avatar = module_author.getString("face");
+                userInfo.followed = module_author.optBoolean("following");
+            userInfo.avatar = module_author.optString("face");
             JSONObject vipJson = module_author.optJSONObject("vip");
             if (vipJson != null) {
                 userInfo.vip_nickname_color = vipJson.optString("nickname_color", "");
             }
             Logu.v("sender", userInfo.name);
-            dynamic.pubTime = module_author.getString("pub_time");
+            dynamic.pubTime = module_author.optString("pub_time");
         }
         dynamic.userInfo = userInfo;
 
@@ -534,9 +623,9 @@ public class DynamicApi {
             JSONObject module_stat = modules.getJSONObject("module_stat");
             JSONObject like = module_stat.getJSONObject("like");
             Stats stats = new Stats();
-            stats.like = like.getInt("count");
-            stats.liked = like.getBoolean("status");
-            stats.like_disabled = like.getBoolean("forbidden");
+            stats.like = like.optInt("count");
+            stats.liked = like.optBoolean("status", like.optBoolean("like_state", false));
+            stats.like_disabled = like.optBoolean("forbidden", false);
             // TODO 转发&回复
 
             dynamic.stats = stats;
@@ -544,9 +633,9 @@ public class DynamicApi {
 
         if (modules.has("module_more") && !modules.isNull("module_more")) {
             List<String> supportItemTypes = new ArrayList<>();
-            JSONArray three_point_items = modules.getJSONObject("module_more").getJSONArray("three_point_items");
-            for (int i = 0; i < three_point_items.length(); i++) {
-                supportItemTypes.add(three_point_items.getJSONObject(i).getString("type"));
+            JSONArray three_point_items = modules.getJSONObject("module_more").optJSONArray("three_point_items");
+            if (three_point_items != null) for (int i = 0; i < three_point_items.length(); i++) {
+                supportItemTypes.add(three_point_items.getJSONObject(i).optString("type"));
             }
             dynamic.canDelete = supportItemTypes.contains("THREE_POINT_DELETE");
         }
@@ -558,14 +647,112 @@ public class DynamicApi {
         return dynamic;
     }
 
+    private static JSONObject normalizeDynamic(JSONObject dynamicJson) throws JSONException {
+        Object modulesObject = dynamicJson.opt("modules");
+        if (!(modulesObject instanceof JSONArray)) return dynamicJson;
+
+        JSONObject normalized = new JSONObject(dynamicJson.toString());
+        JSONArray moduleArray = (JSONArray) modulesObject;
+        JSONObject modules = new JSONObject();
+        JSONObject desc = null;
+        JSONObject moduleDynamic = null;
+
+        for (int i = 0; i < moduleArray.length(); i++) {
+            JSONObject module = moduleArray.optJSONObject(i);
+            if (module == null) continue;
+            String moduleType = module.optString("module_type");
+            switch (moduleType) {
+                case "MODULE_TYPE_AUTHOR":
+                    modules.put("module_author", normalizeDesktopAuthor(module.optJSONObject("module_author")));
+                    break;
+                case "MODULE_TYPE_DESC":
+                    desc = module.optJSONObject("module_desc");
+                    break;
+                case "MODULE_TYPE_DYNAMIC":
+                    moduleDynamic = normalizeDesktopModuleDynamic(module.optJSONObject("module_dynamic"), normalized);
+                    modules.put("module_dynamic", moduleDynamic);
+                    break;
+                case "MODULE_TYPE_STAT":
+                    modules.put("module_stat", module.optJSONObject("module_stat"));
+                    break;
+                case "MODULE_TYPE_MORE":
+                    modules.put("module_more", module.optJSONObject("module_more"));
+                    break;
+            }
+        }
+
+        if (desc != null) {
+            if (moduleDynamic == null) moduleDynamic = new JSONObject();
+            moduleDynamic.put("desc", desc);
+            modules.put("module_dynamic", moduleDynamic);
+        }
+        normalized.put("modules", modules);
+        return normalized;
+    }
+
+    private static JSONObject normalizeDesktopAuthor(JSONObject author) throws JSONException {
+        if (author == null) return new JSONObject();
+        JSONObject user = author.optJSONObject("user");
+        if (user == null) return author;
+
+        JSONObject result = new JSONObject(author.toString());
+        result.put("mid", user.optLong("mid"));
+        result.put("name", user.optString("name"));
+        result.put("face", user.optString("face"));
+        result.put("following", author.optJSONObject("relation") != null && author.optJSONObject("relation").optInt("status", 0) != 0);
+        result.put("pub_time", author.optString("pub_time", author.optString("pub_text", "")));
+        JSONObject vip = user.optJSONObject("vip");
+        if (vip != null) result.put("vip", vip);
+        return result;
+    }
+
+    private static JSONObject normalizeDesktopModuleDynamic(JSONObject moduleDynamic, JSONObject owner) throws JSONException {
+        if (moduleDynamic == null) return new JSONObject();
+        if (moduleDynamic.has("major") || moduleDynamic.has("desc")) return moduleDynamic;
+
+        JSONObject result = new JSONObject();
+        String type = moduleDynamic.optString("type");
+        if ("MDL_DYN_TYPE_FORWARD".equals(type)) {
+            JSONObject forward = moduleDynamic.optJSONObject("dyn_forward");
+            if (forward != null) {
+                JSONObject item = forward.optJSONObject("item");
+                if (item != null) owner.put("orig", normalizeDynamic(item));
+            }
+            return result;
+        }
+
+        JSONObject major = new JSONObject();
+        if (putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_ARCHIVE", "dyn_archive", "MAJOR_TYPE_ARCHIVE", "archive")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_UGC_SEASON", "dyn_ugc_season", "MAJOR_TYPE_UGC_SEASON", "ugc_season")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_PGC", "dyn_pgc", "MAJOR_TYPE_PGC", "pgc")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_ARTICLE", "dyn_article", "MAJOR_TYPE_ARTICLE", "article")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_DRAW", "dyn_draw", "MAJOR_TYPE_DRAW", "draw")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_COMMON", "dyn_common", "MAJOR_TYPE_COMMON", "common")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_LIVE_RCMD", "dyn_live_rcmd", "MAJOR_TYPE_LIVE_RCMD", "live_rcmd")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_LIVE", "dyn_live", "MAJOR_TYPE_LIVE", "live")
+                || putDesktopMajor(moduleDynamic, major, "MDL_DYN_TYPE_OPUS", "dyn_opus", "MAJOR_TYPE_OPUS", "opus")) {
+            result.put("major", major);
+        }
+        return result;
+    }
+
+    private static boolean putDesktopMajor(JSONObject source, JSONObject major, String expectedType,
+                                           String sourceKey, String majorType, String targetKey) throws JSONException {
+        if (!expectedType.equals(source.optString("type")) || source.isNull(sourceKey)) return false;
+        major.put("type", majorType);
+        major.put(targetKey, source.getJSONObject(sourceKey));
+        return true;
+    }
+
     private static VideoCard analyzeVideoCard(JSONObject jsonObject) throws JSONException {
+        JSONObject stat = jsonObject.optJSONObject("stat");
         return new VideoCard(
-                jsonObject.getString("title"),
+                jsonObject.optString("title"),
                 "投稿视频",
-                jsonObject.getJSONObject("stat").getString("play"),
-                jsonObject.getString("cover"),
-                Long.parseLong(jsonObject.getString("aid")),
-                jsonObject.getString("bvid")
+                stat == null ? "" : stat.optString("play"),
+                jsonObject.optString("cover"),
+                Long.parseLong(jsonObject.optString("aid", "0")),
+                jsonObject.optString("bvid")
         );
     }
 

@@ -106,7 +106,7 @@ public class DmImgParamUtil {
         int[] xyz2 = f514(width, height);
         ds.put(new JSONObject()
                 .put("t", random.nextInt(6))
-                .put("c", Base64.encodeToString((classNames[random.nextInt(classNames.length)] + " " + classNames[random.nextInt(classNames.length)]).getBytes(), Base64.DEFAULT))
+                .put("c", Base64.encodeToString((classNames[random.nextInt(classNames.length)] + " " + classNames[random.nextInt(classNames.length)]).getBytes(), Base64.NO_WRAP))
                 .put("p", new JSONArray().put(xyz1[0]).put(xyz1[2]).put(xyz1[1]))
                 .put("s", new JSONArray().put(xyz2[2]).put(xyz2[0]).put(xyz2[1])));
         result.put("ds", ds)

@@ -59,13 +59,14 @@ public class ConfInfoApi {
     public static String signWBI(String url_query) throws JSONException, IOException {
         String mixin_key;
         int curr = getDateCurr();
-        if (SharedPreferencesUtil.getInt("last_wbi", 0) < curr) {    //限制一天一次
+        String cachedMixinKey = SharedPreferencesUtil.getString("wbi_mixin_key", "");
+        if (SharedPreferencesUtil.getInt("last_wbi", 0) < curr || cachedMixinKey.isEmpty()) {    //限制一天一次
             Logu.d("检查WBI");
             SharedPreferencesUtil.putInt("last_wbi", curr);
 
             mixin_key = ConfInfoApi.getWBIMixinKey(ConfInfoApi.getWBIRawKey());
             SharedPreferencesUtil.putString("wbi_mixin_key", mixin_key);
-        } else mixin_key = SharedPreferencesUtil.getString("wbi_mixin_key", "");
+        } else mixin_key = cachedMixinKey;
 
         String wts = String.valueOf(System.currentTimeMillis() / 1000);
         String calc_str = sortUrlParams(Uri.encode(url_query, "@#&=*+-_.,:!?()/~'%") + "&wts=" + wts) + mixin_key;
@@ -112,6 +113,6 @@ public class ConfInfoApi {
 
     public static int getDateCurr() {
         Calendar calendar = Calendar.getInstance();
-        return calendar.get(Calendar.YEAR) * 10000 + calendar.get(Calendar.MONTH) * 100 + calendar.get(Calendar.DATE);
+        return calendar.get(Calendar.YEAR) * 10000 + (calendar.get(Calendar.MONTH) + 1) * 100 + calendar.get(Calendar.DATE);
     }
 }
